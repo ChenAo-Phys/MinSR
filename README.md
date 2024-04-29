@@ -1,5 +1,12 @@
 # MinSR
-Codes for reproducing the results in MinSR
+Codes for reproducing the results in the paper
+
+_Empowering deep neural quantum states through efficient optimization_
+
+Related links:
+- Article (not yet published)
+- [Preprint](https://arxiv.org/abs/2302.01941) (not up-to-date)
+- [Zenodo repository](https://zenodo.org/doi/10.5281/zenodo.7657551)
 
 ## Contents
 
@@ -11,7 +18,7 @@ Codes for reproducing the results in MinSR
 ## Installation
 
 ### 1. Create a conda environment with QuSpin
-quantax relies on the dev_0.3.8 branch of QuSpin, which can't be easily installed
+Quantax relies on the dev_0.3.8 branch of QuSpin, which can't be easily installed
 through pip or conda. Follow this [instruction](https://github.com/QuSpin/QuSpin/discussions/665) for manual installation.
 
 ### 2. Install Quantax
