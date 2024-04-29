@@ -15,7 +15,7 @@ quantax relies on the dev_0.3.8 branch of QuSpin, which can't be easily installe
 through pip or conda. Follow this [instruction](https://github.com/QuSpin/QuSpin/discussions/665) for manual installation.
 
 ### 2. Install Quantax
-Open a terminal, `cd` into the downloaded MinSR folder, and `python setup.py install`
+Open a terminal, `cd` into the downloaded MinSR folder, and `pip install .`
 
 
 ## Supported platforms
