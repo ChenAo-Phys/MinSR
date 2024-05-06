@@ -45,5 +45,5 @@ Install Quantax `pip install .`
 
 
 ### Parallelism
-- Quantax can work only if all devices are on the same host
-- Multiple-host compatibility is to be implemented
+- Quantax can work only if all devices are on the same node
+- Multiple-node compatibility is to be implemented
