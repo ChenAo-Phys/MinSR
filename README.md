@@ -9,11 +9,9 @@ Related links:
 - [GitHub](https://github.com/ChenAo-Phys/MinSR)
 - [Zenodo](https://zenodo.org/doi/10.5281/zenodo.7657551)
 
-<img width="600" alt="geometry" src="https://github.com/ChenAo-Phys/MinSR/blob/main/images/geometry_Fig1a.pdf">
+![images](/images/geometry_Fig1a.jpg)
 
-![images](/images/geometry_Fig1a.pdf)
-
-![matrix](/images/matrix_Fig1b.pdf)
+![matrix](/images/matrix_Fig1b.jpg)
 
 
 ## Contents
