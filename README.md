@@ -21,7 +21,7 @@ Related links:
 - Quantax, a package for reproducing results in the paper
 - Tutorials for Quantax
 - Examples to train networks and measure the variational energy
-- Network weights on the $10 \times 10$ square lattice at $J_2 / J_1 = 0.5$
+- Network parameters on the $10 \times 10$ square lattice at $J_2 / J_1 = 0.5$
 
 ## Quantax
 
