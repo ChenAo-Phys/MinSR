@@ -9,9 +9,9 @@ Related links:
 - [GitHub](https://github.com/ChenAo-Phys/MinSR)
 - [Zenodo](https://zenodo.org/doi/10.5281/zenodo.7657551)
 
-![images](/images/geometry_Fig1a.jpg)
+![images](images/geometry_Fig1a.jpg)
 
-![matrix](/images/matrix_Fig1b.jpg)
+![matrix](images/matrix_Fig1b.jpg)
 
 
 ## Contents
@@ -21,7 +21,7 @@ Related links:
 - Quantax, a package for reproducing results in the paper
 - Tutorials for Quantax
 - Examples to train networks and measure the variational energy
-- Some well-trained network weights
+- Network weights on the $10 \times 10$ square lattice at $J_2 / J_1 = 0.5$
 
 ## Quantax
 
