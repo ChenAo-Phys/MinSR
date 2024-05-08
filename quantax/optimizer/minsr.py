@@ -98,8 +98,8 @@ class MinSR(TDVP):
             jac_out = jax.grad(output_fn, holomorphic=self.state.holomorphic)
             deltas = jac_out(outputs)
         else:
-            jac_real = jax.grad(lambda *args: output_fn(*args).real)(outputs)
-            jac_imag = jax.grad(lambda *args: output_fn(*args).imag)(outputs)
+            jac_real = jax.grad(lambda x: output_fn(x).real)(outputs)
+            jac_imag = jax.grad(lambda x: output_fn(x).imag)(outputs)
             deltas = [re + 1j * im for re, im in zip(jac_real, jac_imag)]
         return neurons, deltas
 
@@ -108,20 +108,25 @@ class MinSR(TDVP):
     def _layer_backward(
         self, layers: eqx.Module, neuron: jax.Array, delta: jax.Array
     ) -> Tuple[jax.Array, jax.Array]:
-        forward = lambda net, x: jax.vmap(net)(x)
-        f_vjp = filter_vjp(forward, layers, neuron)[1]
+        forward = lambda net, x: net(x)
+
+        @partial(jax.vmap, in_axes=(None, 0, 0))
+        def backward(net, x, delta):
+            f_vjp = filter_vjp(forward, net, x)[1]
+            vjp_vals, delta = f_vjp(delta)
+            return tree_fully_flatten(vjp_vals), delta
 
         if self.vs_type == 0:
-            jac, delta = f_vjp(delta)
-            jac = tree_fully_flatten(jac)
+            grad, delta = backward(layers, neuron, delta)
         else:
-            jac_real, delta_real = f_vjp(delta.real)
-            jac_imag, delta_imag = f_vjp(delta.imag)
-            jac = tree_fully_flatten(jac_real) + 1j * tree_fully_flatten(jac_imag)
+            gr, delta_real = backward(layers, neuron, delta.real)
+            gi, delta_imag = backward(layers, neuron, delta.imag)
+            grad = gr + 1j * gi
             delta = delta_real + 1j * delta_imag if delta_real is not None else None
-        return jac.astype(get_default_dtype()), delta
+        grad = jnp.sum(grad.astype(get_default_dtype()), axis=0)
+        return grad, delta
 
-    #@eqx.filter_jit
+    @eqx.filter_jit
     def _reversed_scan_layers(
         self,
         ansatz: Tuple[eqx.Module, ...],

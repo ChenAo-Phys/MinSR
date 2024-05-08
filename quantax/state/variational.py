@@ -5,6 +5,7 @@ from jaxtyping import PyTree
 from pathlib import Path
 
 from warnings import warn
+from functools import partial
 import numpy as np
 import math
 import jax
@@ -14,15 +15,22 @@ import equinox as eqx
 
 from .state import State
 from ..symmetry import Symmetry
-from ..nn import NoGradLayer, filter_grad, Theta0Layer
+from ..nn import NoGradLayer, Theta0Layer, filter_vjp
 from ..utils import (
     is_sharded_array,
     to_array_shard,
     filter_replicate,
     array_extend,
     tree_fully_flatten,
+    tree_split_cpl,
+    tree_combine_cpl,
 )
-from ..global_defs import get_params_dtype, is_params_cpl
+from ..global_defs import (
+    get_params_dtype,
+    is_params_cpl,
+    get_default_dtype,
+    is_default_cpl,
+)
 
 
 _Array = Union[np.ndarray, jax.Array]
@@ -31,6 +39,34 @@ _Array = Union[np.ndarray, jax.Array]
 class Variational(State):
     """
     Variational state.
+
+    Args:
+        ansatz: Variational ansatz, either an eqx.Module or a list of them.
+            If a list of eqx.Module is given, the `input_fn` and `output_fn` should be
+            specified to determine how to combine different variational ansatz.
+
+        param_file: File for loading parameters. Default to not loading parameters.
+
+        symm: Symmetry of the network, default to no symmetry. If `input_fn` and
+            `output_fn` are not given, this will generate symmetry projections as
+            `input_fn` and `output_fn`.
+
+        max_parallel: The maximum foward pass per device, default to no limit. This is
+            important for large batches to avoid memory overflow. For Heisenberg
+            hamiltonian, this also helps to improve the efficiency of computing local
+            energy by keeping constant amount of forward pass and avoiding re-jit.
+            This number should be kept unchanged when the amount of devices and
+            symmetries is changed.
+
+        input_fn: Function applied on the input spin before feeding into ansatz.
+
+        output_fn: Function applied on the ansatz output to generate wavefunction.
+
+    Returns:
+        If n_neighbor is int, then a 2-dimensional jax.numpy array with each row
+        a pair of neighbor site index.
+        If n_neighbor is Sequence[int], then a list containing corresponding to all
+        n_neighbor values.
 
     self.vs_type:
         0: real parameters -> real outputs or (holomorphic complex -> complex)
@@ -43,7 +79,7 @@ class Variational(State):
     def __init__(
         self,
         ansatz: Union[eqx.Module, Sequence[eqx.Module]],
-        param_file: Optional[str] = None,
+        param_file: Optional[Union[str, Path, BinaryIO]] = None,
         symm: Optional[Symmetry] = None,
         max_parallel: Optional[int] = None,
         input_fn: Optional[Callable] = None,
@@ -131,57 +167,94 @@ class Variational(State):
         self.input_fn = input_fn
         self.output_fn = output_fn
 
-        def forward_fn(ansatz: eqx.Module, spin: jax.Array) -> jax.Array:
+        def net_forward(net: eqx.Module, x: jax.Array) -> jax.Array:
+            batch = x.shape[:-1]
+            x = x.reshape(-1, x.shape[-1])
+            psi = jax.vmap(net)(x)
+            return psi.reshape(batch)
+
+        def forward_fn(ansatz: Tuple[eqx.Module], spin: jax.Array) -> jax.Array:
             inputs = input_fn(spin)
-            outputs = []
-            for s, f in zip(inputs, ansatz):
-                batch = s.shape[:-1]
-                psi = jax.vmap(f)(s.reshape(-1, s.shape[-1]))
-                outputs.append(psi.reshape(batch))
-            # print(self, len(outputs))
+            outputs = [net_forward(net, x) for net, x in zip(ansatz, inputs)]
             outputs = output_fn(outputs)
             return outputs
 
-        self.forward_fn = forward_fn
+        self.forward_fn = eqx.filter_jit(forward_fn)
         forward_vmap = eqx.filter_jit(jax.vmap(forward_fn, in_axes=(None, 0)))
         self.forward_vmap = lambda spins: forward_vmap(self.ansatz, spins)
 
     def _init_backward(self) -> None:
         """
-        Generate functions for computing 1/ψ dψ/dθ
+        Generate functions for computing 1/ψ dψ/dθ. Designed for efficient combination 
+        of multiple networks.
         """
 
-        def forward(
-            params: jax.Array, others: eqx.Module, spin: jax.Array
-        ) -> jax.Array:
-            if self.vs_type == 1:
-                params = params.reshape(2, -1)
-                params = params[0] + 1j * params[1]
-            params = self.get_params_unflatten(params)
-            ansatz = self.combine(params, others)
-            psi = self.forward_fn(ansatz, spin)
-            return psi / jax.lax.stop_gradient(psi)
+        def grad_fn(ansatz: Tuple[eqx.Module], spin: jax.Array) -> jax.Array:
+            def forward(net, x):
+                out = net(x)
+                if self.vs_type == 0:
+                    out = out.astype(get_default_dtype())
+                elif jnp.iscomplexobj(out):
+                    out = (out.real, out.imag)
+                return out
 
-        def grad_fn(ansatz: eqx.Module, spin: jax.Array) -> jax.Array:
-            params, others = self.partition(ansatz)
-            params = tree_fully_flatten(params)
-            if self.vs_type == 1:
-                params = jnp.concatenate([params.real, params.imag])
+            inputs = self.input_fn(spin)
+            batch = [x.shape[:-1] for x in inputs]
+            inputs = [x.reshape(-1, x.shape[-1]) for x in inputs]
+            forward_vmap = jax.vmap(forward, in_axes=(None, 0))
+            outputs = [forward_vmap(net, x) for net, x in zip(ansatz, inputs)]
+
+            def output_fn(outputs):
+                psi = []
+                for out, shape in zip(outputs, batch):
+                    if isinstance(out, tuple):
+                        out = out[0] + 1j * out[1]
+                    psi.append(out.reshape(shape))
+                psi = self.output_fn(psi)
+                return psi / jax.lax.stop_gradient(psi)
+
             if self.vs_type == 0:
-                grad_fn = filter_grad(forward, holomorphic=self.holomorphic)
-                grad = grad_fn(params, others, spin)
+                deltas = jax.grad(output_fn, holomorphic=self.holomorphic)(outputs)
             else:
-                gradfn_real = filter_grad(lambda *args: forward(*args).real)
-                gradfn_imag = filter_grad(lambda *args: forward(*args).imag)
-                gr = gradfn_real(params, others, spin)
-                gi = gradfn_imag(params, others, spin)
-                grad = gr + 1j * gi
-            return grad
+                output_real = lambda outputs: output_fn(outputs).real
+                output_imag = lambda outputs: output_fn(outputs).imag
+                deltas_real = jax.grad(output_real)(outputs)
+                deltas_imag = jax.grad(output_imag)(outputs)
 
-        self.grad_fn = grad_fn
-        self.grad = lambda s: eqx.filter_jit(grad_fn)(self.ansatz, s)
-        grad_vmap = jax.vmap(grad_fn, in_axes=(None, 0))
-        self.jacobian = lambda spins: eqx.filter_jit(grad_vmap)(self.ansatz, spins)
+            if self.vs_type == 1:
+                ansatz_real, ansatz_imag = tree_split_cpl(ansatz)
+                ansatz = [(r, i) for r, i in zip(ansatz_real, ansatz_imag)]
+                fn = lambda net, x: forward(tree_combine_cpl(net[0], net[1]), x)
+            else:
+                fn = forward
+
+            @partial(jax.vmap, in_axes=(None, 0, 0))
+            def backward(net, x, delta):
+                f_vjp = filter_vjp(fn, net, x)[1]
+                vjp_vals, _ = f_vjp(delta)
+                return tree_fully_flatten(vjp_vals)
+            
+            grad = []
+            if self.vs_type == 0:
+                for net, x, delta in zip(ansatz, inputs, deltas):
+                    grad.append(backward(net, x, delta))
+            else:
+                for net, x, dr, di in zip(ansatz, inputs, deltas_real, deltas_imag):
+                    gr = backward(net, x, dr)
+                    gi = backward(net, x, di)
+                    grad.append(gr + 1j * gi)
+
+            if self.vs_type == 1:
+                grad_real = [g[:, : g.shape[1] // 2] for g in grad]
+                grad_imag = [g[:, g.shape[1] // 2 :] for g in grad]
+                grad = grad_real + grad_imag
+            grad = jnp.concatenate(grad, axis=1).astype(get_default_dtype())
+            return jnp.sum(grad, axis=0)
+
+        self.grad_fn = eqx.filter_jit(grad_fn)
+        self.grad = lambda s: grad_fn(self.ansatz, s)
+        grad_vmap = eqx.filter_jit(jax.vmap(grad_fn, in_axes=(None, 0)))
+        self.jacobian = lambda spins: grad_vmap(self.ansatz, spins)
 
     def __call__(
         self, fock_states: _Array, ref_states: Optional[_Array] = None

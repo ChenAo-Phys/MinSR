@@ -20,7 +20,7 @@ Related links:
 - Data
 - Quantax, a package for reproducing results in the paper
 - Tutorials for Quantax
-- Exemplary codes to train networks and measure the variational energy
+- Examples to train networks and measure the variational energy
 - Some well-trained network weights
 
 ## Quantax
