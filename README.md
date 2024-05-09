@@ -27,6 +27,14 @@ Related links:
 
 (Many thanks to [Marin Bukov](https://github.com/mgbukov) for the help with QuSpin)
 
+### Supported platforms
+- CPU
+- Nvidia GPU
+
+### Parallelism
+- Quantax can work when all devices are on the same node
+- Multiple-node compatibility is to be implemented
+
 ### Step 1 - Create a conda environment
 
 #### Step 1.1 - Requirement file
@@ -84,16 +92,6 @@ Install `jax-0.4.25` according to the [guidance](https://jax.readthedocs.io/en/l
 #### Step 2.3 - Install Quantax
 
 `pip install .`
-
-
-### Supported platforms
-- CPU
-- Nvidia GPU
-
-
-### Parallelism
-- Quantax can work only if all devices are on the same node
-- Multiple-node compatibility is to be implemented
 
 
 ## Questions?
