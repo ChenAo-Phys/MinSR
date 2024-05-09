@@ -40,7 +40,7 @@ In the folder of `quspin-linux_reqs.txt`
 `conda create -n quantax --file quspin-linux_reqs.txt`
 (you are free to choose other environment names)
 
-Step 1.3 - Activate environment
+#### Step 1.3 - Activate environment
 
 `conda activate quantax`
 
