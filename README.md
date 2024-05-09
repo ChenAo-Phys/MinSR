@@ -25,7 +25,7 @@ Related links:
 
 ## Quantax Installation
 
-(Many thanks to Marin Bukov @mgbukov for the help with QuSpin)
+(Many thanks to [Marin Bukov](https://github.com/mgbukov) for the help with QuSpin)
 
 ### Step 1 - Create a conda environment
 
@@ -50,7 +50,7 @@ through pip or conda. Follow the instruction below for manual installation.
 
 #### Step 1.1 - Clone the dev_0.3.8 branch of QuSpin
 
-`cd ~` (or choose a folder you want to clone the repository)
+`cd ~` (or choose a folder where you want to clone the repository)
 
 `git clone -b dev_0.3.8 https://github.com/QuSpin/QuSpin.git`
 
@@ -75,7 +75,7 @@ Install `jax-0.4.25` according to the [guidance](https://jax.readthedocs.io/en/l
 
 #### Step 2.2 - Clone the repository
 
-`cd ~` (or choose a folder you want to clone the repository)
+`cd ~` (or choose a folder where you want to clone the repository)
 
 `git clone https://github.com/ChenAo-Phys/MinSR.git`
 
