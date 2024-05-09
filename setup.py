@@ -10,7 +10,7 @@ setup(
     python_requires=">=3.9,<3.10",
     install_requires=[
         'quspin>=0.3.7',
-        'jax>=0.4.13,<=0.4.25',
+        'matplotlib>=3.8.0',
         'equinox>=0.11.4',
     ],
 )
