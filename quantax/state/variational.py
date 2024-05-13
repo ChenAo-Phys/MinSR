@@ -62,12 +62,6 @@ class Variational(State):
 
         output_fn: Function applied on the ansatz output to generate wavefunction.
 
-    Returns:
-        If n_neighbor is int, then a 2-dimensional jax.numpy array with each row
-        a pair of neighbor site index.
-        If n_neighbor is Sequence[int], then a list containing corresponding to all
-        n_neighbor values.
-
     self.vs_type:
         0: real parameters -> real outputs or (holomorphic complex -> complex)
         1: non-holomorphic complex parameters -> complex outputs
