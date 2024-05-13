@@ -8,7 +8,7 @@ The variational energies of these networks correspond to the results of ResNet2(
 in Fig. 2b
 """
 
-network_idx = 3
+network_idx = 1
 
 import pathlib
 import quantax as qtx
