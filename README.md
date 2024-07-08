@@ -4,7 +4,7 @@ Repository for the paper
 _Empowering deep neural quantum states through efficient optimization_
 
 Related links:
-- Article (not yet published)
+- [Paper](https://www.nature.com/articles/s41567-024-02566-1)
 - [Preprint](https://arxiv.org/abs/2302.01941) (not up-to-date)
 - [GitHub](https://github.com/ChenAo-Phys/MinSR)
 - [Zenodo](https://zenodo.org/doi/10.5281/zenodo.7657551)
